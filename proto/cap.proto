@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+message SingleCap {
+    string cap = 1;
+}
+
+message CapList {
+    repeated string cap = 1;
+}
+
+service CapNegotiation {
+    rpc RequestCap(CapList) returns (stream SingleCap) {}
+    rpc GetCaps(CapList) returns (CapList) {}
+}
