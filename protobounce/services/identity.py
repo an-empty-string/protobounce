@@ -9,8 +9,29 @@ identity = identity_pb2.Identity()
 nick_wait = threading.Event()
 nick_set = threading.Event()
 
-global irc
-irc = None
+
+class IdentityManagerServicer(identity_pb2.IdentityManagerServicer):
+    irc = None
+
+    def GetIdentity(self, request, context):
+        return identity
+
+    def SetIdentity(self, request, context):
+        return self.set_nickname(request.nickname)
+
+    @classmethod
+    def set_nickname(cls, name):
+        old_nick = identity.nickname
+        nick_wait.set()
+        nick_set.clear()
+        cls.irc.SendMessage(irc_pb2.IRCClientMessage(verb="NICK", arguments=[name]))
+        nick_set.wait()
+
+        result = identity_pb2.IdentitySet(identity=identity)
+        result.success = False
+        if identity.nickname != old_nick:
+            result.success = True
+        return result
 
 def stop_waiting():
     if nick_wait.is_set():
@@ -31,31 +52,9 @@ def handle_messages(irc):
         elif message.verb == "433":
             stop_waiting()
 
-def set_nickname(name):
-    old_nick = identity.nickname
-    nick_wait.set()
-    nick_set.clear()
-    irc.SendMessage(irc_pb2.IRCClientMessage(verb="NICK", arguments=[name]))
-    nick_set.wait()
-
-    result = identity_pb2.IdentitySet(identity=identity)
-    result.success = False
-    if identity.nickname != old_nick:
-        result.success = True
-    return result
-
-class IdentityManagerServicer(identity_pb2.IdentityManagerServicer):
-    def GetIdentity(self, request, context):
-        return identity
-
-    def SetIdentity(self, request, context):
-        return set_nickname(request.nickname)
-
 def main(args):
-    global irc
-
     channel = grpc.insecure_channel(args.connect)
-    irc = irc_pb2.IRCConnectionStub(channel)
+    IdentityManagerServicer.irc = irc = irc_pb2.IRCConnectionStub(channel)
     t = threading.Thread(target=handle_messages, args=(irc,))
     t.start()
 
@@ -67,7 +66,7 @@ def main(args):
     if irc.DoConnection(irc_pb2.ConnectionRequest()).result:
         irc.SendMessage(irc_pb2.IRCClientMessage(verb="USER", arguments=[args.name, args.name, "+i", args.name]))
 
-        result = set_nickname(args.name)
+        result = IdentityManagerServicer.set_nickname(args.name)
         if not result.success:
             return False
 
