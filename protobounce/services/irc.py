@@ -21,7 +21,9 @@ class IRCConnectionServicer(irc_pb2.IRCConnectionServicer):
     def MessageStream(self, request, context):
         queue = pending[request.connection_id]
         while True:
-            yield queue.get()
+            data = queue.get()
+            if not request.filter or data.verb in request.filter.verbs:
+                yield data
             queue.task_done()
 
     def SendMessage(self, request, context):
