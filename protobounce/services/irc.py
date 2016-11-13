@@ -1,12 +1,12 @@
+from .. import parser
+from ..proto import irc_pb2
 from collections import defaultdict
 from concurrent import futures
-from ..proto import irc_pb2
 from queue import Queue
 
 import argparse
 import grpc
 import logging
-import parser
 import socket
 import ssl
 import threading
@@ -38,13 +38,13 @@ class IRCConnectionServicer(irc_pb2.IRCConnectionServicer):
         return irc_pb2.ConnectionResponse()
 
 class IRCConnection(object):
-    def __init__(self, host, port, ssl):
+    def __init__(self, host, port, use_ssl):
         self.handlers = {"PING": self.handle_ping}
         self.host = host
         self.port = port
         self.started = False
 
-        self.s = ssl.SSLSocket() if ssl else socket.socket()
+        self.s = ssl.SSLSocket(socket.socket()) if use_ssl else socket.socket()
 
         self.read_thread = threading.Thread(target=self.handle_socket_read)
         self.write_thread = threading.Thread(target=self.handle_socket_write)
@@ -95,8 +95,8 @@ class IRCConnection(object):
             self.writeln(unparsed)
             send_pending.task_done()
 
-def irc_start(host, port, ssl):
-    c = IRCConnection(host, port, ssl)
+def irc_start(host, port, use_ssl):
+    c = IRCConnection(host, port, use_ssl)
     return c
 
 def create_server(port):
