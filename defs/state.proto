@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+message Channel {
+    int32 id = 1;
+    string name = 2;
+    string modes = 3;
+}
+
+message User {
+    int32 id = 1;
+    string name = 2;
+    string ident = 3;
+    string gecos = 4;
+    string account = 5;
+}
