@@ -1,5 +1,19 @@
 from .proto import irc_pb2
 
+def parse_hostmask(hostmask: str) -> list:
+    ret = []
+    if "!" in hostmask:
+        first, hostmask = hostmask.split("!", maxsplit=1)
+        ret.append(first)
+
+    if "@" in hostmask:
+        first, hostmask = hostmask.split("@", maxsplit=1)
+        ret.append(first)
+
+    ret.append(hostmask)
+    return ret
+
+
 def message_from_str(message: str) -> irc_pb2.IRCServerMessage:
     obj = irc_pb2.IRCServerMessage()
 

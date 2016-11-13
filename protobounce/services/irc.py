@@ -20,10 +20,11 @@ logging.basicConfig(level=logging.DEBUG)
 
 class IRCConnectionServicer(irc_pb2.IRCConnectionServicer):
     def MessageStream(self, request, context):
-        queue = pending[request.connection_id]
+        connection_id = (max(pending.keys()) + 1) if pending else 1
+        queue = pending[connection_id]
         while True:
             data = queue.get()
-            if not request.filter or data.verb in request.filter.verbs:
+            if (not request.filter.verbs) or (data.verb in request.filter.verbs):
                 yield data
             queue.task_done()
 
@@ -35,7 +36,8 @@ class IRCConnectionServicer(irc_pb2.IRCConnectionServicer):
         if not conn.started:
             conn.connect()
             conn.listen()
-        return irc_pb2.ConnectionResponse()
+            return irc_pb2.ConnectionResponse(result=True)
+        return irc_pb2.ConnectionResponse(result=False)
 
 class IRCConnection(object):
     def __init__(self, host, port, use_ssl):

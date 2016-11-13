@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+message IdentityRequest {}
+
+message Identity {
+    string nickname = 1;
+}
+
+message IdentitySet {
+    bool success = 1;
+    Identity identity = 2;
+}
+
+service IdentityManager {
+    rpc GetIdentity(IdentityRequest) returns (Identity) {}
+    rpc SetIdentity(Identity) returns (IdentitySet) {}
+}

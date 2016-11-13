@@ -23,13 +23,15 @@ message MessageFilter {
 }
 
 message StreamRequest {
-    int32 connection_id = 1;
-    MessageFilter filter = 2;
+    MessageFilter filter = 1;
 }
 
 message SentResponse {}
 message ConnectionRequest {}
-message ConnectionResponse {}
+
+message ConnectionResponse {
+    bool result = 1;
+}
 
 service IRCConnection {
     rpc MessageStream(StreamRequest) returns (stream IRCServerMessage) {}
