@@ -14,6 +14,7 @@ import time
 
 pending = defaultdict(Queue)
 send_pending = Queue()
+conn = None
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -30,11 +31,18 @@ class IRCConnectionServicer(irc_pb2.IRCConnectionServicer):
         send_pending.put(request)
         return irc_pb2.SentResponse()
 
+    def DoConnection(self, request, context):
+        if not conn.started:
+            conn.connect()
+            conn.listen()
+        return irc_pb2.ConnectionResponse()
+
 class IRCConnection(object):
     def __init__(self, host, port, ssl):
         self.handlers = {"PING": self.handle_ping}
         self.host = host
         self.port = port
+        self.started = False
 
         self.s = ssl.SSLSocket() if ssl else socket.socket()
 
@@ -42,6 +50,7 @@ class IRCConnection(object):
         self.write_thread = threading.Thread(target=self.handle_socket_write)
 
     def connect(self):
+        self.started = True
         self.s.connect((self.host, self.port))
 
     def handle_ping(self, writeln, msg):
@@ -84,10 +93,10 @@ class IRCConnection(object):
             msg = send_pending.get()
             unparsed = parser.str_from_message(msg)
             self.writeln(unparsed)
+            send_pending.task_done()
 
-def irc_connect(host, port, ssl):
+def irc_start(host, port, ssl):
     c = IRCConnection(host, port, ssl)
-    c.listen()
     return c
 
 def create_server(port):
@@ -111,5 +120,5 @@ if __name__ == '__main__':
     args = arg_parser.parse_args()
 
     server = create_server(args.listen)
-    conn = irc_connect(args.host, args.port, args.ssl)
+    conn = irc_start(args.host, args.port, args.ssl)
     serve_forever(server)

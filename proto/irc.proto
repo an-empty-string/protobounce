@@ -27,9 +27,12 @@ message StreamRequest {
     MessageFilter filter = 2;
 }
 
-message SentResponse { }
+message SentResponse {}
+message ConnectionRequest {}
+message ConnectionResponse {}
 
 service IRCConnection {
     rpc MessageStream(StreamRequest) returns (stream IRCServerMessage) {}
     rpc SendMessage(IRCClientMessage) returns (SentResponse) {}
+    rpc DoConnection(ConnectionRequest) returns (ConnectionResponse) {}
 }
