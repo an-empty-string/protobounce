@@ -1,11 +1,15 @@
+from .. import util
 from ..proto import cap_pb2, irc_pb2
 from collections import defaultdict
 from concurrent import futures
 from threading import Event, Semaphore, Thread
 
 import grpc
+import logging
 import os
 import os.path
+
+logging.basicConfig(level=logging.DEBUG)
 
 waiting_caps = defaultdict(Event)
 have_caps = set()
@@ -34,7 +38,7 @@ class CapNegotiationServicer(cap_pb2.CapNegotiationServicer):
             cap = cap.lower()
 
             if cap in have_caps:
-                yield cap_pb2.SingleCap(cap)
+                yield cap_pb2.SingleCap(cap=cap)
             elif waiting_caps[cap].is_set():
                 continue
             else:
@@ -63,21 +67,22 @@ def handle_messages(irc):
             continue
 
         action = message.arguments[1].upper()
+
         if action == "ACK" or action == "NAK":
-            cap = message.arguments[2].lower()
-            if action == "ACK":
-                have_caps.add(cap)
-            waiting_caps[cap].set()
+            caps = message.arguments[2].lower().split()
+            for cap in caps:
+                if action == "ACK":
+                    logging.info("Got ACK for {}".format(cap))
+                    have_caps.add(cap)
+                else:
+                    logging.info("Got NAK for {}".format(cap))
+                waiting_caps[cap].set()
 
 def main(args):
-    channel = grpc.insecure_channel("unix:" + os.path.join(args.sockets, "irc.sock"))
-    CapNegotiationServicer.irc = irc = irc_pb2.IRCConnectionStub(channel)
+    CapNegotiationServicer.irc = irc = util.get_service(args.sockets, "irc", "IRCConnection")
+    server = util.get_server(args.sockets, "cap", CapNegotiationServicer)
 
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    cap_pb2.add_CapNegotiationServicer_to_server(CapNegotiationServicer(), server)
-    server.add_insecure_port("unix:" + os.path.join(args.sockets, "cap.sock"))
     server.start()
-
     handle_messages(irc)
 
 if __name__ == '__main__':
