@@ -7,6 +7,8 @@ from queue import Queue
 import argparse
 import grpc
 import logging
+import os
+import os.path
 import socket
 import ssl
 import threading
@@ -115,12 +117,12 @@ def serve_forever(server):
 if __name__ == '__main__':
     import argparse
     arg_parser = argparse.ArgumentParser(description="Run the protobounce IRC server.")
-    arg_parser.add_argument("listen", help="Address to listen on")
+    arg_parser.add_argument("sockets", help="Directory of protobounce sockets")
     arg_parser.add_argument("host", help="IRC server to connect to")
     arg_parser.add_argument("port", type=int, help="IRC port to use")
     arg_parser.add_argument("--secure", dest="ssl", action="store_true", help="Use SSL/TLS to connect")
     args = arg_parser.parse_args()
 
-    server = create_server(args.listen)
+    server = create_server("unix:" + os.path.join(args.sockets, "irc.sock"))
     conn = irc_start(args.host, args.port, args.ssl)
     serve_forever(server)

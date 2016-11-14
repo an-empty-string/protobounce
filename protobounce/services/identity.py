@@ -3,6 +3,8 @@ from ..proto import irc_pb2, identity_pb2
 from concurrent import futures
 
 import grpc
+import os
+import os.path
 import threading
 
 identity = identity_pb2.Identity()
@@ -53,14 +55,14 @@ def handle_messages(irc):
             stop_waiting()
 
 def main(args):
-    channel = grpc.insecure_channel(args.connect)
+    channel = grpc.insecure_channel("unix:" + os.path.join(args.sockets, "irc.sock"))
     IdentityManagerServicer.irc = irc = irc_pb2.IRCConnectionStub(channel)
     t = threading.Thread(target=handle_messages, args=(irc,))
     t.start()
 
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     identity_pb2.add_IdentityManagerServicer_to_server(IdentityManagerServicer(), server)
-    server.add_insecure_port(args.listen)
+    server.add_insecure_port("unix:" + os.path.join(args.sockets, "identity.sock"))
     server.start()
 
     if irc.DoConnection(irc_pb2.ConnectionRequest()).result:
@@ -78,8 +80,7 @@ def main(args):
 if __name__ == '__main__':
     import argparse
     arg_parser = argparse.ArgumentParser(description="Run the protobounce identity manager.")
-    arg_parser.add_argument("listen", help="Address to listen on")
-    arg_parser.add_argument("connect", help="Address of protobounce IRC service")
+    arg_parser.add_argument("sockets", help="Directory of protobounce sockets")
     arg_parser.add_argument("name", help="Nickname to use")
 
     args = arg_parser.parse_args()

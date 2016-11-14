@@ -4,6 +4,8 @@ from concurrent import futures
 from threading import Event, Semaphore, Thread
 
 import grpc
+import os
+import os.path
 
 waiting_caps = defaultdict(Event)
 have_caps = set()
@@ -68,12 +70,12 @@ def handle_messages(irc):
             waiting_caps[cap].set()
 
 def main(args):
-    channel = grpc.insecure_channel(args.connect)
+    channel = grpc.insecure_channel("unix:" + os.path.join(args.sockets, "irc.sock"))
     CapNegotiationServicer.irc = irc = irc_pb2.IRCConnectionStub(channel)
 
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     cap_pb2.add_CapNegotiationServicer_to_server(CapNegotiationServicer(), server)
-    server.add_insecure_port(args.listen)
+    server.add_insecure_port("unix:" + os.path.join(args.sockets, "cap.sock"))
     server.start()
 
     handle_messages(irc)
@@ -81,8 +83,7 @@ def main(args):
 if __name__ == '__main__':
     import argparse
     arg_parser = argparse.ArgumentParser(description="Run the protobounce capability manager.")
-    arg_parser.add_argument("listen", help="Address to listen on")
-    arg_parser.add_argument("connect", help="Address of protobounce IRC service")
+    arg_parser.add_argument("sockets", help="Directory of protobounce sockets")
 
     args = arg_parser.parse_args()
     main(args)
